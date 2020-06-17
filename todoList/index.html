@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <meta http-equiv="X-⌃-Compatible" content="ie=edge">
+  <title>Node Web</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <style >
+    .sort-box a{
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="app">
+    <!-- <h1>Todo List</h1> -->
+    <dl class="sort-box">
+      <dt>时间排序</dt>
+      <dd><a :href="void(0)" @click="sortByTime(-1)">倒叙</a></dd>
+      <dd><a :href="void(0)" @click="sortByTime(1)">正序</a></dd>
+    </dl>
+    <hr/>
+    <ul v-loading="loading">
+      <li v-for="(item, index) in items" :key="index">
+        <input v-if="item.edit" v-model="item.action" @keyup.enter="onUpdate(item, index)"></input>
+        <span v-else v-text="item.action"></span>
+        <button @click="onDelete(item, index)">删除</button>
+        <button @click="toggleItemEdit(index)">编辑</button>
+      </li>
+    </ul>
+    <input type="text" v-model="item" @keyup.enter="onCreate" placeholder="what's todo"></el-input>
+
+    <button @click="onCreate">添加</button>
+  </div>
+
+  <!-- cdn 引用：Vue 和 Node -->
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+
+  <script>
+    new Vue({
+      el: document.getElementById('app'),
+      data: function () {
+        return {
+          items: [],
+          item: '',
+          loading: false,
+          host: 'http://localhost:3000',
+        }
+      },
+      mounted () {
+        // 进入页面请求数据
+        this.getList()
+      },
+      methods: {
+        // 点击按钮提交数据
+        onCreate() {
+          // if (!this.item) return
+          axios.post(this.host + '/create', {
+            action: this.item
+          }).then(res => {
+            const {code, data, message} = res.data
+            if (code < 0) return this.$message.error(message);
+            this.$message.success('创建成功');
+            this.item = ''
+            this.items = [data, ...this.items]
+          }).catch(function (err) {
+            this.$message.error(err)
+          })
+        },
+        onDelete({_id}, index) {
+          axios({
+            method: 'DELETE',
+            url: this.host + '/delete',
+            data: {
+              id: _id
+            }
+          }).then(res => {
+            const { code } = res.data
+            if (code > -1) {
+              this.$message.success('删除成功')
+              this.items.splice(index, 1)
+            }
+          }).catch(err => {
+            this.$message.error(err)
+          })
+        },
+        toggleItemEdit (index) {
+          const item2 = this.items[index]
+          this.$set(this.items[index], 'edit', !item2.edit)
+        },
+        onUpdate ({_id, action, edit, tempAction}, index) {
+          axios({
+            method: 'put',
+            url: `${this.host}/update/${_id}`,
+            data: {
+              action
+            }
+          }).then(res => {
+            const { code, message } = res.data
+            this.toggleItemEdit(index)
+            if (code < 0) {
+              this.$message.error(message)
+              this.$set(this.items[index], 'action', tempAction)
+              return
+            }
+            this.$message.success('编辑成功')
+          })
+        },
+        sortByTime (sort = 1) {
+          this.getList({sortBy: { updateTime: sort }})
+        },
+        getList ({sortBy} = {}) {
+          this.loading = true
+          axios.get(this.host, {
+            params: {
+              sortBy
+            }
+          }).then(({data}) => {
+            const newDatas = data.data.map(item => {
+              return {...item, tempAction: item.action}
+            })
+            this.items = newDatas
+            this.loading = false
+          }).catch(function (err) {
+            console.log(err)
+          })
+        }
+      }
+    })
+  </script>
+</body>
+
+</html>
