@@ -18,12 +18,7 @@ const handleError = (err) => {
 const getDocs = (query) => todoModel.find(query)
 const checkExited = (query) => getDocs(query).then((rowRes) => rowRes.length > 0)
 const createDOC = (query) => todoModel.create(query)
-// const formatSortBy = (sortBy = {}) => {
-//   // { [sortBy.name]: sortBy === 'desc' ? -1 : 1 }
-//   return Object.entries(sortBy).reduce(([key, sort], res) => {
-//     return res[key] = sort
-//   }, {})
-// }
+
 // 每个接口对应的数据操作逻辑
 module.exports = {
   get: (req, res) => {
