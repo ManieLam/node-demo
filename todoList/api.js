@@ -18,12 +18,29 @@ const handleError = (err) => {
 const getDocs = (query) => todoModel.find(query)
 const checkExited = (query) => getDocs(query).then((rowRes) => rowRes.length > 0)
 const createDOC = (query) => todoModel.create(query)
+const filterTypes = (values = []) => {
+  return {
+    'eq': values[0],
+    'range': { '$lte': values[1], '$gte': values[0] }
+  }
+}
+const formatFilter = (filterByStr) => {
+  const filterList = filterByStr.split(';')
+  return filterList.reduce((res, filter) => {
+    const items = filter.split('|')
+    const values = items[2].split(',')
+    // const value = items[1] === 'eq' ? items[2] : { ['$' + items[1]]: items[2] }
+    const filters = filterTypes(values)[items[1]] || { ['$' + items[1]]: values[0] }
+    return { ...res, [items[0]]: filters }
+  }, {})
+}
 
 // 每个接口对应的数据操作逻辑
 module.exports = {
   get: (req, res) => {
-    const { sortBy } = req.query
-    getDocs()
+    const { sortBy, filterBy } = req.query
+    let findFilter = filterBy ? formatFilter(filterBy) : {}
+    getDocs(findFilter)
       .sort(sortBy ? JSON.parse(sortBy) : { updateTime: -1 })
       .then(dbData => {
         res.send(handleSuccess(dbData));
@@ -33,17 +50,14 @@ module.exports = {
   create: (req, res) => {
     const {action} = req.body
     const curTime = new Date().getTime()
-    checkExited({ action })
-      .then(hasExited => {
-        if (hasExited) return res.send(handleError('已存在输入的内容！'))
-        createDOC({
-          action: action,
-          updateTime: curTime,
-          createTime: curTime
-        }).then(rowRes => {
-          res.send(handleSuccess(rowRes))
-        })
-      })
+    // 实现二： 配合next()使用
+    createDOC({
+      action: action,
+      updateTime: curTime,
+      createTime: curTime
+    }).then(rowRes => {
+      res.send(handleSuccess(rowRes))
+    })
   },
   update: (req, res) => {
     const {params, body} = req
@@ -84,5 +98,6 @@ module.exports = {
     })
     // 删除一批记录
     // todoModel.deleteMany({}).then()
-  }
+  },
+  checkExited: checkExited
 }

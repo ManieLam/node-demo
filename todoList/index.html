@@ -22,6 +22,18 @@
       <dt>时间排序</dt>
       <dd><a :href="void(0)" @click="sortByTime(-1)">倒叙</a></dd>
       <dd><a :href="void(0)" @click="sortByTime(1)">正序</a></dd>
+      <dt>筛选</dt>
+      <dd>
+        <label for="filter-updateTime">更新时间</label>
+        <el-date-picker
+          id="filter-updateTime"
+          v-model="filter.updateTime"
+          size="mini"
+          type="date"
+          placeholder="选择筛选日期"
+          value-format="timestamp"
+          @change="filterByTime"></el-date-picker>
+      </dd>
     </dl>
     <hr/>
     <ul v-loading="loading">
@@ -50,7 +62,10 @@
           items: [],
           item: '',
           loading: false,
-          host: 'http://localhost:3000',
+          filter: {},
+          filterBy: '',
+          sortBy: {},
+          host: 'http://localhost:3000/action',
         }
       },
       mounted () {
@@ -115,13 +130,26 @@
         sortByTime (sort = 1) {
           this.getList({sortBy: { updateTime: sort }})
         },
-        getList ({sortBy} = {}) {
+        filterByTime (filterBy) {
+          if (!filterBy) {
+            this.filterBy = ''
+            this.getList()
+            return
+          }
+          const start = filterBy
+          const end = start + 24 * 60 * 60 * 1000
+          this.getList({filterBy: `updateTime|range|${start},${end}`})
+        },
+        getList ({sortBy = this.sortBy, filterBy = this.filterBy} = {}) {
           this.loading = true
-          axios.get(this.host, {
+          axios.get(this.host + '/list', {
             params: {
-              sortBy
+              sortBy,
+              filterBy
             }
           }).then(({data}) => {
+            this.filterBy = filterBy
+            this.sortBy = sortBy
             const newDatas = data.data.map(item => {
               return {...item, tempAction: item.action}
             })
